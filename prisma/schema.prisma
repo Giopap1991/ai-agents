@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  agentRequests AgentRequest[]
+  campaigns     Campaign[]
+  presentations Presentation[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model AgentRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  prompt    String   @db.Text
+  response  String   @db.Text
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Campaign {
+  id          String        @id @default(cuid())
+  userId      String
+  subject     String
+  body        String        @db.Text
+  status      CampaignStatus
+  sentAt      DateTime?
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id])
+  recipients  CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id          String    @id @default(cuid())
+  campaignId  String
+  email       String
+  status      EmailStatus
+  sentAt      DateTime?
+  error       String?   @db.Text
+  campaign    Campaign  @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+}
+
+model Presentation {
+  id          String   @id @default(cuid())
+  userId      String
+  topic       String
+  content     Json     // Stores the structured presentation content
+  pdfUrl      String?  // URL to the generated PDF
+  status      PresentationStatus
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  COMPLETED
+  FAILED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum PresentationStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+} 
